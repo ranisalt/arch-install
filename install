@@ -1,0 +1,140 @@
+#!/usr/bin/bash -x
+
+chroot="/mnt"
+cups_uri="ipp://pet.inf.ufsc.br"
+ldap_base="dc=pet,dc=inf,dc=ufsc,dc=br"
+ldap_uri="ldap://pet.inf.ufsc.br"
+packages="base-devel bash-completion cups firefox git nfs-utils nss-pam-ldapd openldap openssh python slim syslinux vim xfce4 xorg"
+
+# CHECK MIRROR CONNECTION
+if ! ping -c 1 150.162.66.161 &>/dev/null
+then
+	echo "Could not connect to 150.162.66.161, please check cables or change IP"
+	exit 69
+fi
+
+echo -n "What is the desired machine hostname?"
+read hostname
+
+# PARTITIONING AND LABELING
+# TODO: consider using zram instead of swap
+partitioning() {
+	parted -s -- /dev/sda mklabel gpt
+	parted -s --align optimal -- /dev/sda \
+		mkpart primary ext4 0% 100MiB \
+		mkpart primary ext4 100MiB -4GiB \
+		mkpart primary linux-swap -4GiB 100% \
+		set 1 boot on
+
+	mkfs.ext4 -L BOOT /dev/sda1
+	mkfs.ext4 -L ROOT /dev/sda2
+	mkswap -L SWAP /dev/sda3
+}
+
+# MOUNT PARTITIONS
+# Labels are useful
+mount_partitions() {
+	mount -L ROOT ${chroot}
+	mkdir -p ${chroot}/boot
+	mount -L BOOT ${chroot}/boot
+	swapon -L SWAP
+}
+
+# BOOTSTRAP
+# Configure mirrorlist and run pacstrap
+bootstrap() {
+	sed -i 's/^\(Server\)/#\1/g' /etc/pacman.d/mirrorlist
+	sed -i 's/^#\(Server.*pet\.inf\.ufsc\.br\)/\1/' /etc/pacman.d/mirrorlist
+	pacstrap ${chroot} base ${packages}
+}
+
+# CONFIGURE FILES
+configure() {
+	# -no means --noheadings and --output, but it's funny like that
+	root=$(lsblk -no PARTUUID `blkid -L ROOT`)
+	boot=$(lsblk -no PARTUUID `blkid -L BOOT`)
+	swap=$(lsblk -no PARTUUID `blkid -L SWAP`)
+
+	# I do not use genfstab because I need a more fine grained approach
+	tee ${chroot}/etc/fstab <<-EOF
+		# LOCAL MOUNTS
+		PARTUUID="${root}" / ext4 noatime 0 1
+		PARTUUID="${boot}" /boot ext4 noatime,noauto,nodev,noexec,nosuid,x-systemd.automount 0 2
+		PARTUUID="${swap}" swap swap defaults 0 0
+
+		# NFS MOUNTS
+		#pet.inf.ufsc.br:/home /home nfs noatime,noauto,x-systemd.automount 0 0
+	EOF
+
+	echo ${hostname} > ${chroot}/etc/hostname
+	echo 150.162.66.161 pet.inf.ufsc.br >> ${chroot}/etc/hosts
+
+	# Enable only brazilian portuguese locale
+	sed -i 's/#\(pt_BR.UTF-8\)/\1/' ${chroot}/etc/locale.gen
+	echo LANG=pt_BR.UTF-8 > ${chroot}/etc/locale.conf
+
+	# Configure systemd-timesyncd to use local NTP servers, since the port is filtered
+	sed -i 's/^#?NTP=.*$/NTP=ntp.ufsc.br/' ${chroot}/etc/systemd/timesyncd.conf
+	sed -i 's/^\(Fallback\)/#\1/' ${chroot}/etc/systemd/timesyncd.conf
+
+	# Configure mkinitcpio to use LZ4. It's faster.
+	sed -i 's/^\(COMPRESSION\)/#\1/g' ${chroot}/etc/mkinitcpio.conf
+	sed -i 's/^#\(COMPRESSION="lz4"\)/\1/' ${chroot}/etc/mkinitcpio.conf
+
+	# Let wheel users become use sudo
+	sed -i 's/^#.*?\(%wheel ALL=(ALL) ALL\)/\1/' ${chroot}/etc/sudoers
+}
+
+# CONFIGURE ON CHROOT
+# Does some things other than write to files
+configure_chroot() {
+	# Generate locales
+	arch-chroot ${chroot} locale-gen
+
+	# Symlink timezone
+	arch-chroot ${chroot} ln -sf /usr/share/zoneinfo/America/Sao_Paulo /etc/localtime
+
+	# Gets the interface of the default internet connection and enable dhcpcd
+	eth=$(grep -oP 'dev \K\w+' <(ip r | head -1))
+	arch-chroot ${chroot} systemctl enable dhcpcd@${eth}.service
+
+	# Read and store root password
+	echo -n "What is the desired root password?" 
+	read rootpw
+	arch-chroot ${chroot} chpasswd <<-EOF
+		root:$rootpw
+	EOF
+	unset rootpw
+
+	arch-chroot ${chroot} systemctl enable slim.service
+}
+
+# INSTALL BOOTLOADER
+install_bootloader() {
+	syslinux-install_update -i -a -m -c ${chroot}
+
+	# Fix retarded hardcoded default
+	sed -i 's/sda3/sda2/' ${chroot}/boot/syslinux/syslinux.cfg
+}
+
+configure_cups() {
+	sed -i "s/\(ServerName\).*/\1 ${cups_uri}/" ${chroot}/etc/cups/client.conf
+}
+
+configure_ldap() {
+	sed -i "s/#BASE.*/BASE ${ldap_base}/" ${chroot}/etc/openldap/ldap.conf
+	sed -i "s/#URI.*/URI ${ldap_uri}/" ${chroot}/etc/openldap/ldap.conf
+
+	sed -i 's/^\(passwd\|group\|shadow\)\(.*\)/\1\2 ldap/' ${chroot}/etc/nsswitch.conf
+	# TODO: edit /etc/nslcd.conf
+	sed -i "s/^uri.*/uri ${ldap_uri}/" ${chroot}/etc/nslcd.conf
+	arch-chroot ${chroot} systemctl enable nslcd.service
+}
+
+partitioning
+mount_partitions
+bootstrap
+configure
+configure_chroot
+install_bootloader
+configure_ldap
