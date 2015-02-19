@@ -118,16 +118,16 @@ install_bootloader() {
 }
 
 configure_cups() {
-	sed -i "s/\(ServerName\).*/\1 ${cups_uri}/" ${chroot}/etc/cups/client.conf
+	sed -i "s|\(ServerName\).*|\1 ${cups_uri}|" ${chroot}/etc/cups/client.conf
 }
 
 configure_ldap() {
 	sed -i "s/#BASE.*/BASE ${ldap_base}/" ${chroot}/etc/openldap/ldap.conf
-	sed -i "s/#URI.*/URI ${ldap_uri}/" ${chroot}/etc/openldap/ldap.conf
+	sed -i "s|#URI.*|URI ${ldap_uri}|" ${chroot}/etc/openldap/ldap.conf
 
 	sed -i 's/^\(passwd\|group\|shadow\)\(.*\)/\1\2 ldap/' ${chroot}/etc/nsswitch.conf
 	# TODO: edit /etc/nslcd.conf
-	sed -i "s/^uri.*/uri ${ldap_uri}/" ${chroot}/etc/nslcd.conf
+	sed -i "s|^uri.*|uri ${ldap_uri}|" ${chroot}/etc/nslcd.conf
 	arch-chroot ${chroot} systemctl enable nslcd.service
 }
 
