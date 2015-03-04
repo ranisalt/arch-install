@@ -68,7 +68,7 @@ configure() {
 	EOF
 
 	echo -n "What is the desired machine hostname?"
-	read hostname
+	read -er hostname
 	echo ${hostname} > ${chroot}/etc/hostname
 	echo 150.162.66.161 pet.inf.ufsc.br >> ${chroot}/etc/hosts
 
@@ -103,7 +103,7 @@ configure_chroot() {
 
 	# Read and store root password
 	echo -n "What is the desired root password?" 
-	read rootpw
+	read -ers rootpw
 	arch-chroot ${chroot} chpasswd <<-EOF
 		root:$rootpw
 	EOF
