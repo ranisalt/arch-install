@@ -13,9 +13,6 @@ then
 	exit 69
 fi
 
-echo -n "What is the desired machine hostname?"
-read hostname
-
 # PARTITIONING AND LABELING
 # TODO: consider using zram instead of swap
 partitioning() {
@@ -66,6 +63,8 @@ configure() {
 		#pet.inf.ufsc.br:/home /home nfs noatime,noauto,x-systemd.automount 0 0
 	EOF
 
+	echo -n "What is the desired machine hostname?"
+	read hostname
 	echo ${hostname} > ${chroot}/etc/hostname
 	echo 150.162.66.161 pet.inf.ufsc.br >> ${chroot}/etc/hosts
 
