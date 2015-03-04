@@ -40,9 +40,11 @@ partitioning() {
 		mkpart primary linux-swap -4GiB 100% \
 		set 1 boot on
 
-	mkfs.ext4 -L BOOT /dev/sda1
-	mkfs.ext4 -L ROOT /dev/sda2
-	mkswap -L SWAP /dev/sda3
+	yes | {
+		mkfs.ext4 -L BOOT /dev/sda1
+		mkfs.ext4 -L ROOT /dev/sda2
+		mkswap -L SWAP /dev/sda3
+	}
 }
 
 # MOUNT PARTITIONS
