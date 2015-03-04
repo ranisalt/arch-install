@@ -59,8 +59,9 @@ mount_partitions() {
 # BOOTSTRAP
 # Configure mirrorlist and run pacstrap
 bootstrap() {
-	sed -i 's/^\(Server\)/#\1/g' /etc/pacman.d/mirrorlist
-	sed -i 's/^#\(Server.*pet\.inf\.ufsc\.br\)/\1/' /etc/pacman.d/mirrorlist
+	cat <<-EOF > /etc/pacman.d/mirrorlist
+		Server = http://pet.inf.ufsc.br/mirrors/archlinux/\$repo/os/\$arch
+	EOF
 	pacstrap ${chroot} base $(eval echo -e ${packages})
 }
 
@@ -96,8 +97,10 @@ configure() {
 	echo LANG=pt_BR.UTF-8 > ${chroot}/etc/locale.conf
 
 	# Configure systemd-timesyncd to use local NTP servers, since the port is filtered
-	sed -i 's/^#?NTP=.*$/NTP=ntp.ufsc.br/' ${chroot}/etc/systemd/timesyncd.conf
-	sed -i 's/^\(Fallback\)/#\1/' ${chroot}/etc/systemd/timesyncd.conf
+	cat <<-EOF > ${chroot}/etc/systemd/timesyncd.conf
+		[Time]
+		NTP=ntp.ufsc.br
+	EOF
 
 	# Configure mkinitcpio to use LZ4. It's faster.
 	sed -i 's/^\(COMPRESSION\)/#\1/g' ${chroot}/etc/mkinitcpio.conf
@@ -140,16 +143,26 @@ install_bootloader() {
 }
 
 configure_cups() {
-	sed -i "s|\(ServerName\).*|\1 ${cups_uri}|" ${chroot}/etc/cups/client.conf
+	cat <<-EOF > ${chroot}/etc/cups/client.conf
+		ServerName ${cups_uri}
+	EOF
 }
 
 configure_ldap() {
-	sed -i "s/#BASE.*/BASE ${ldap_base}/" ${chroot}/etc/openldap/ldap.conf
-	sed -i "s|#URI.*|URI ${ldap_uri}|" ${chroot}/etc/openldap/ldap.conf
+	cat <<-EOF > ${chroot}/etc/openldap/ldap.conf
+		BASE ${ldap_base}
+		URI ${ldap_uri}
+	EOF
 
 	sed -i 's/^\(passwd\|group\|shadow\)\(.*\)/\1\2 ldap/' ${chroot}/etc/nsswitch.conf
-	# TODO: edit /etc/nslcd.conf
-	sed -i "s|^uri.*|uri ${ldap_uri}|" ${chroot}/etc/nslcd.conf
+	cat <<-EOF > ${chroot}/etc/nslcd.conf
+		uid nslcd
+		gid nslcd
+		uri ${ldap_uri}
+		base ${ldap_base}
+		scope sub
+		base group ou=Group,${ldap_base}
+	EOF
 	arch-chroot ${chroot} systemctl enable nslcd.service
 }
 
