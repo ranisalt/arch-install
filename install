@@ -15,7 +15,7 @@ packages="${packages} syslinux"
 packages="${packages} cups nfs-utils nss-pam-ldapd openldap openssh pulseaudio"
 
 # X.Org and related packages
-packages="${packages} xf86-video-nouveau xorg-{server,setxkbmap,xinit}"
+packages="${packages} slim xf86-video-nouveau xorg-{server,setxkbmap,xinit}"
 
 # XFCE4 stuff
 packages="${packages} thunar xfdesktop xfwm4 xfce4-{panel,session,settings,terminal}"
