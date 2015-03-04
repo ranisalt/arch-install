@@ -52,6 +52,7 @@ configure() {
 	boot=$(lsblk -no PARTUUID `blkid -L BOOT`)
 	swap=$(lsblk -no PARTUUID `blkid -L SWAP`)
 
+	mkdir ${chroot}/mnt/pet
 	# I do not use genfstab because I need a more fine grained approach
 	tee ${chroot}/etc/fstab <<-EOF
 		# LOCAL MOUNTS
