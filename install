@@ -74,7 +74,7 @@ configure() {
 
 	mkdir ${chroot}/mnt/pet
 	# I do not use genfstab because I need a more fine grained approach
-	tee ${chroot}/etc/fstab <<-EOF
+	cat <<-EOF > ${chroot}/etc/fstab
 		# LOCAL MOUNTS
 		PARTUUID="${root}" / ext4 noatime 0 1
 		# Disable automount on /boot increases security, and letting systemd handle makes it more comfortable :)
