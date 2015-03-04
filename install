@@ -4,7 +4,24 @@ chroot="/mnt"
 cups_uri="ipp://pet.inf.ufsc.br"
 ldap_base="dc=pet,dc=inf,dc=ufsc,dc=br"
 ldap_uri="ldap://pet.inf.ufsc.br"
-packages="base-devel bash-completion cups firefox git nfs-utils nss-pam-ldapd openldap openssh python slim syslinux vim xfce4 xorg"
+
+### PACKAGE SELECTION ###
+packages="base-devel"
+
+# Bootloader. Please change the bootloader function if you change it.
+packages="${packages} syslinux"
+
+# Some daemons, clients and related packages
+packages="${packages} cups nfs-utils nss-pam-ldapd openldap openssh pulseaudio"
+
+# X.Org and related packages
+packages="${packages} xf86-video-nouveau xorg-{server,setxkbmap,xinit}"
+
+# XFCE4 stuff
+packages="${packages} thunar xfdesktop xfwm4 xfce4-{panel,session,settings,terminal}"
+
+# Useful things
+packages="${packages} bash-completion firefox git vim"
 
 # CHECK MIRROR CONNECTION
 if ! ping -c 1 150.162.66.161 &>/dev/null
