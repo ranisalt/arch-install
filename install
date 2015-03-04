@@ -17,7 +17,7 @@ fi
 # TODO: consider using zram instead of swap
 partitioning() {
 	parted -s -- /dev/sda mklabel gpt
-	parted -s --align optimal -- /dev/sda \
+	yes | parted -s --align optimal -- /dev/sda \
 		mkpart primary ext4 0% 100MiB \
 		mkpart primary ext4 100MiB -4GiB \
 		mkpart primary linux-swap -4GiB 100% \
