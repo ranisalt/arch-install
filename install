@@ -56,11 +56,14 @@ configure() {
 	tee ${chroot}/etc/fstab <<-EOF
 		# LOCAL MOUNTS
 		PARTUUID="${root}" / ext4 noatime 0 1
+		# Disable automount on /boot increases security, and letting systemd handle makes it more comfortable :)
 		PARTUUID="${boot}" /boot ext4 noatime,noauto,nodev,noexec,nosuid,x-systemd.automount 0 2
 		PARTUUID="${swap}" swap swap defaults 0 0
 
 		# NFS MOUNTS
-		#pet.inf.ufsc.br:/home /home nfs noatime,noauto,x-systemd.automount 0 0
+		# NFS automount handled by systemd improves boot time, since it will only be mounted at login screen
+		pet.inf.ufsc.br:/home /home nfs noatime,noauto,x-systemd.automount 0 0
+		pet.inf.ufsc.br:/mnt/pet /mnt/pet nfs noatime,noauto,x-systemd.automount 0 0
 	EOF
 
 	echo -n "What is the desired machine hostname?"
