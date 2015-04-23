@@ -12,7 +12,7 @@ packages="base-devel"
 packages="${packages} syslinux"
 
 # Some daemons, clients and related packages
-packages="${packages} cups nfs-utils nss-pam-ldapd openldap openssh pulseaudio"
+packages="${packages} avahi cups distcc nfs-utils nss-pam-ldapd openldap openssh pulseaudio"
 
 # X.Org and related packages
 packages="${packages} slim xf86-video-nouveau xorg-{server,setxkbmap,xinit}"
@@ -166,6 +166,22 @@ configure_ldap() {
 	arch-chroot ${chroot} systemctl enable nslcd.service
 }
 
+configure_distcc() {
+	cat <<-EOF > ${chroot}/etc/default/distcc
+		STARTDISTCC=true
+		ALLOWEDNETS="150.162.66.160/27"
+		ZEROCONF=true
+	EOF
+
+	echo +zeroconf >> ${chroot}/etc/distcc/hosts
+
+	cat <<-EOF > ${chroot}/etc/conf.d/distccd
+		DISTCC_ARGS="--port 3632 --log-level notice --log-file /var/log/distccd.log -N 15 --allow 150.162.66.160/27 --zeroconf"
+	EOF
+
+	arch_chroot ${chroot} systemctl enable avahi-daemon.service distccd.service
+}
+
 partitioning
 mount_partitions
 bootstrap
@@ -173,3 +189,4 @@ configure
 configure_chroot
 install_bootloader
 configure_ldap
+configure_distcc
